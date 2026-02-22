@@ -80,7 +80,7 @@
   }
 
   .card:hover {
-    transform: scale(1.06);
+    transform: scale(1.10);
     border-color: #ff3c00;
     z-index: 10;
   }
@@ -119,6 +119,106 @@
     line-height: 1.4;
   }
 
+  .card-download {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    background: #ff3c00;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+    text-decoration: none;
+    color: #fff;
+  }
+
+  .card:hover .card-download {
+    opacity: 1;
+  }
+
+  .card-download:hover {
+    transform: scale(1.15);
+    background: #fff;
+    color: #ff3c00;
+  }
+
+  .card-download svg {
+    width: 13px;
+    height: 13px;
+    fill: currentColor;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .tab-btn {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #555;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 7px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab-btn:hover { border-color: #ff3c00; color: #fff; }
+  .tab-btn.active { background: #ff3c00; border-color: #ff3c00; color: #fff; }
+
+  .empty-fav {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #333;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    padding: 60px 0;
+  }
+
+  /* Heart button */
+  .card-heart {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+    cursor: pointer;
+    border: none;
+  }
+
+  .card:hover .card-heart { opacity: 1; }
+  .card-heart.faved { opacity: 1; }
+
+  .card-heart svg {
+    width: 13px;
+    height: 13px;
+    fill: #555;
+    transition: fill 0.15s, transform 0.15s;
+  }
+
+  .card-heart.faved svg { fill: #ff3c00; }
+  .card-heart:hover { transform: scale(1.2); }
+
   /* Toast notification */
   #toast {
     position: fixed;
@@ -145,6 +245,22 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  .collection-link {
+    position: fixed;
+    bottom: 16px;
+    right: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: #444;
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: color 0.15s;
+  }
+
+  .collection-link:hover {
+    color: #ff3c00;
+  }
+
   .no-img {
     width: 100%;
     height: 100%;
@@ -156,19 +272,40 @@
     text-align: center;
     padding: 4px;
   }
+
+  .card-count {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.45rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 4px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0.4;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>REACTION IMAGES</h1>
-  <p class="subtitle">CLICK TO COPY SHARE LINKS</p>
-  <input type="text" id="search" placeholder="Search..." autocomplete="off">
+  <h1>MEME VAULT</h1>
+  <p class="subtitle">Click to copy URL &nbsp;·&nbsp; Hover to preview name</p>
+  <input type="text" id="search" placeholder="Search memes..." autocomplete="off">
   <p class="count" id="count"></p>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-all" onclick="switchTab('all')">ALL</button>
+    <button class="tab-btn" id="tab-fav" onclick="switchTab('favourites')">♥ FAVOURITES</button>
+  </div>
 </header>
 
 <div class="grid" id="grid"></div>
 <div id="toast">Link Copied!</div>
+<a href="https://postimg.cc/gallery/BQVmv4b/33fb0579" target="_blank" class="collection-link">⬇ Download whole collection</a>
 
 <script>
 const grid = document.getElementById('grid');
@@ -180,24 +317,58 @@ fetch('data.json')
     grid.innerHTML = '<p style="color:#ff3c00;font-size:0.8rem;grid-column:1/-1">⚠ Could not load data.json — make sure it\'s in the same folder and you\'re running a local server.</p>';
   });
 
+let allCards = [];
+let favourites = JSON.parse(localStorage.getItem('meme-favs') || '[]');
+let currentTab = 'all';
+
+function saveFavs() {
+  localStorage.setItem('meme-favs', JSON.stringify(favourites));
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+  document.getElementById('tab-fav').classList.toggle('active', tab === 'favourites');
+  const q = document.getElementById('search').value.toLowerCase();
+  filterCards(q);
+}
+
+function filterCards(q) {
+  let visible = 0;
+  let total = 0;
+  allCards.forEach(({ card, name, itemName }) => {
+    const matchSearch = name.includes(q);
+    const matchTab = currentTab === 'all' || favourites.includes(itemName);
+    const show = matchSearch && matchTab;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+    if (matchTab) total++;
+  });
+
+  // empty state for favourites
+  const existing = document.getElementById('empty-fav');
+  if (existing) existing.remove();
+  if (currentTab === 'favourites' && visible === 0) {
+    const empty = document.createElement('div');
+    empty.id = 'empty-fav';
+    empty.className = 'empty-fav';
+    empty.textContent = 'No favourites yet — click the ♥ on any meme';
+    document.getElementById('grid').appendChild(empty);
+  }
+
+  const countEl = document.getElementById('count');
+  countEl.textContent = q ? `${visible} of ${total} memes` : '';
+}
+
 function buildGrid(data) {
 const toast = document.getElementById('toast');
 const searchInput = document.getElementById('search');
-const countEl = document.getElementById('count');
-let allCards = [];
 
 searchInput.addEventListener('input', () => {
-  const q = searchInput.value.toLowerCase();
-  let visible = 0;
-  allCards.forEach(({ card, name }) => {
-    const show = name.includes(q);
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-  countEl.textContent = q ? `${visible} of ${data.length} memes` : '';
+  filterCards(searchInput.value.toLowerCase());
 });
-let toastTimeout;
 
+let toastTimeout;
 function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
@@ -229,28 +400,80 @@ data.forEach(item => {
   nameEl.textContent = item.name;
   overlay.appendChild(nameEl);
 
+  // Heart button
+  const heart = document.createElement('button');
+  heart.className = 'card-heart' + (favourites.includes(item.name) ? ' faved' : '');
+  heart.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+  heart.title = 'Favourite';
+  heart.addEventListener('click', e => {
+    e.stopPropagation();
+    if (favourites.includes(item.name)) {
+      favourites = favourites.filter(f => f !== item.name);
+      heart.classList.remove('faved');
+    } else {
+      favourites.push(item.name);
+      heart.classList.add('faved');
+    }
+    saveFavs();
+    if (currentTab === 'favourites') filterCards(searchInput.value.toLowerCase());
+  });
+
+  const dlBtn = document.createElement('a');
+  dlBtn.className = 'card-download';
+  dlBtn.title = 'Download';
+  dlBtn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 4v-2h14v2H5z"/></svg>';
+  dlBtn.href = item.url || item.filename;
+  dlBtn.download = item.filename;
+  dlBtn.addEventListener('click', e => e.stopPropagation());
+
+  // Copy count badge
+  const countBadge = document.createElement('div');
+  countBadge.className = 'card-count';
+  countBadge.textContent = '0';
+
+  // Fetch current count (non-blocking)
+  const apiKey = 'memevault-' + item.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 50);
+  fetch('https://countapi.mileshilliard.com/api/v1/get/' + apiKey)
+    .then(r => r.json())
+    .then(d => {
+      const val = parseInt(d.value) || 0;
+      countBadge.textContent = val;
+    })
+    .catch(() => {});
+
   card.appendChild(img);
   card.appendChild(overlay);
+  card.appendChild(heart);
+  card.appendChild(countBadge);
+  card.appendChild(dlBtn);
 
   card.addEventListener('click', () => {
     const toCopy = item.url || item.filename;
     navigator.clipboard.writeText(toCopy).then(() => {
       showToast('Link Copied!');
     }).catch(() => {
-      // fallback
       const ta = document.createElement('textarea');
       ta.value = toCopy;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      showToast('Link Copied');
+      showToast('Link Copied!');
     });
+    // Increment shared counter
+    const key = 'memevault-' + item.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().slice(0, 50);
+    fetch('https://countapi.mileshilliard.com/api/v1/hit/' + key)
+      .then(r => r.json())
+      .then(d => {
+        const val = parseInt(d.value) || 0;
+        countBadge.textContent = val;
+      })
+      .catch(() => {});
   });
 
-    allCards.push({ card, name: item.name.toLowerCase() });
-  grid.appendChild(card);
-  });
+  allCards.push({ card, name: item.name.toLowerCase(), itemName: item.name });
+  document.getElementById('grid').appendChild(card);
+});
 }
 </script>
 </body>
