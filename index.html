@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meme Grid</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 4px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: #555;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  #search {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 3px;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    padding: 10px 18px;
+    width: 320px;
+    outline: none;
+    letter-spacing: 1px;
+    transition: border-color 0.15s;
+  }
+
+  #search::placeholder { color: #444; }
+  #search:focus { border-color: #ff3c00; }
+
+  .count {
+    color: #333;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    margin-top: 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(18, 1fr);
+    gap: 6px;
+  }
+
+  .card {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #1a1a1a;
+    border: 1px solid #222;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .card:hover {
+    transform: scale(1.06);
+    border-color: #ff3c00;
+    z-index: 10;
+  }
+
+  .card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.2s;
+  }
+
+  .card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding: 6px;
+  }
+
+  .card:hover .card-overlay {
+    opacity: 1;
+  }
+
+  .card-name {
+    font-size: 0.55rem;
+    text-align: center;
+    color: #ff3c00;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1.4;
+  }
+
+  /* Toast notification */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #ff3c00;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 9999;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .no-img {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.5rem;
+    color: #333;
+    text-align: center;
+    padding: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>REACTION IMAGES</h1>
+  <p class="subtitle">CLICK TO COPY SHARE LINKS</p>
+  <input type="text" id="search" placeholder="Search..." autocomplete="off">
+  <p class="count" id="count"></p>
+</header>
+
+<div class="grid" id="grid"></div>
+<div id="toast">Link Copied!</div>
+
+<script>
+const grid = document.getElementById('grid');
+
+fetch('data.json')
+  .then(r => r.json())
+  .then(data => buildGrid(data))
+  .catch(() => {
+    grid.innerHTML = '<p style="color:#ff3c00;font-size:0.8rem;grid-column:1/-1">⚠ Could not load data.json — make sure it\'s in the same folder and you\'re running a local server.</p>';
+  });
+
+function buildGrid(data) {
+const toast = document.getElementById('toast');
+const searchInput = document.getElementById('search');
+const countEl = document.getElementById('count');
+let allCards = [];
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase();
+  let visible = 0;
+  allCards.forEach(({ card, name }) => {
+    const show = name.includes(q);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  countEl.textContent = q ? `${visible} of ${data.length} memes` : '';
+});
+let toastTimeout;
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+data.forEach(item => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.title = item.name;
+
+  const img = document.createElement('img');
+  img.src = item.url || item.filename;
+  img.alt = item.name;
+  img.loading = 'lazy';
+  img.onerror = function() {
+    this.style.display = 'none';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'no-img';
+    placeholder.textContent = item.name;
+    card.insertBefore(placeholder, overlay);
+  };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'card-overlay';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'card-name';
+  nameEl.textContent = item.name;
+  overlay.appendChild(nameEl);
+
+  card.appendChild(img);
+  card.appendChild(overlay);
+
+  card.addEventListener('click', () => {
+    const toCopy = item.url || item.filename;
+    navigator.clipboard.writeText(toCopy).then(() => {
+      showToast('Link Copied!');
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = toCopy;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Link Copied');
+    });
+  });
+
+    allCards.push({ card, name: item.name.toLowerCase() });
+  grid.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
