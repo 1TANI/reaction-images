@@ -68,6 +68,24 @@
     gap: 6px;
   }
 
+  @media (max-width: 1200px) {
+    .grid { grid-template-columns: repeat(10, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 12px; }
+    h1 { font-size: 2rem; }
+    .subtitle { font-size: 0.6rem; }
+    #search { width: 100%; font-size: 1rem; padding: 12px 14px; }
+    .grid { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+    .tab-btn { font-size: 0.6rem; padding: 6px 12px; letter-spacing: 1px; }
+    .collection-link { font-size: 0.55rem; bottom: 10px; right: 10px; }
+  }
+
+  @media (max-width: 400px) {
+    .grid { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+  }
+
   .card {
     position: relative;
     aspect-ratio: 1;
@@ -83,6 +101,11 @@
     transform: scale(1.10);
     border-color: #ff3c00;
     z-index: 10;
+  }
+
+  @media (hover: none) {
+    .card:hover { transform: none; }
+    .card.tapped { border-color: #ff3c00; z-index: 10; }
   }
 
   .card img {
@@ -105,7 +128,8 @@
     padding: 6px;
   }
 
-  .card:hover .card-overlay {
+  .card:hover .card-overlay,
+  .touch .card.tapped .card-overlay {
     opacity: 1;
   }
 
@@ -137,7 +161,8 @@
     color: #fff;
   }
 
-  .card:hover .card-download {
+  .card:hover .card-download,
+  .touch .card.tapped .card-download {
     opacity: 1;
   }
 
@@ -206,7 +231,8 @@
     border: none;
   }
 
-  .card:hover .card-heart { opacity: 1; }
+  .card:hover .card-heart,
+  .touch .card.tapped .card-heart { opacity: 1; }
   .card-heart.faved { opacity: 1; }
 
   .card-heart svg {
@@ -471,8 +497,30 @@ data.forEach(item => {
       .catch(() => {});
   });
 
+  // Touch: first tap reveals buttons, second tap copies
+  card.addEventListener('touchstart', e => {
+    if (!document.body.classList.contains('touch')) return;
+    if (!card.classList.contains('tapped')) {
+      e.preventDefault();
+      document.querySelectorAll('.card.tapped').forEach(c => c.classList.remove('tapped'));
+      card.classList.add('tapped');
+    }
+  }, { passive: false });
+
   allCards.push({ card, name: item.name.toLowerCase(), itemName: item.name });
   document.getElementById('grid').appendChild(card);
+});
+
+// Detect touch device
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  document.body.classList.add('touch');
+}
+
+// Tap outside to close
+document.addEventListener('touchstart', e => {
+  if (!e.target.closest('.card')) {
+    document.querySelectorAll('.card.tapped').forEach(c => c.classList.remove('tapped'));
+  }
 });
 }
 </script>
