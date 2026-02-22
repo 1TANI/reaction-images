@@ -498,8 +498,17 @@ data.forEach(item => {
   });
 
   // Touch: first tap reveals buttons, second tap copies
+  // Track touch start position to distinguish tap from scroll
+  let touchStartY = 0;
   card.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  card.addEventListener('touchend', e => {
     if (!document.body.classList.contains('touch')) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const didScroll = Math.abs(touchEndY - touchStartY) > 8;
+    if (didScroll) return; // user was scrolling, ignore
     if (!card.classList.contains('tapped')) {
       e.preventDefault();
       document.querySelectorAll('.card.tapped').forEach(c => c.classList.remove('tapped'));
